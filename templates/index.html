@@ -49,13 +49,20 @@
             </div>
 
             <!-- Main Control: Response Toggle -->
-            <div class="flex items-center bg-gray-700 rounded-full p-1 pl-4 space-x-3 border border-gray-600">
-                <span class="text-sm font-medium text-gray-300">Responder Câmera:</span>
-                <button id="toggleBtn" onclick="toggleAck()"
-                    class="relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 bg-green-600">
-                    <span id="toggleSlider"
-                        class="inline-block h-6 w-6 transform rounded-full bg-white transition duration-200 ease-in-out translate-x-9"></span>
-                </button>
+            <div class="flex items-center space-x-4">
+                <div class="bg-gray-700 px-4 py-1 rounded-lg border border-gray-600 flex items-center space-x-2">
+                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Veículos</span>
+                    <span id="vehicleCounter" class="text-xl font-bold text-blue-400 font-mono">0</span>
+                </div>
+
+                <div class="flex items-center bg-gray-700 rounded-full p-1 pl-4 space-x-3 border border-gray-600">
+                    <span class="text-sm font-medium text-gray-300">Responder:</span>
+                    <button id="toggleBtn" onclick="toggleAck()"
+                        class="relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 bg-green-600">
+                        <span id="toggleSlider"
+                            class="inline-block h-6 w-6 transform rounded-full bg-white transition duration-200 ease-in-out translate-x-9"></span>
+                    </button>
+                </div>
             </div>
         </div>
     </header>
@@ -138,14 +145,25 @@
         // On Load
         document.addEventListener('DOMContentLoaded', () => {
             fetchSettings();
+            fetchSettings();
             setInterval(fetchEvents, 1000);
+            setInterval(fetchSettings, 5000); // Poll counter every 5s
         });
 
         async function fetchSettings() {
             try {
-                const res = await fetch('/api/settings');
-                const data = await res.json();
-                isAckEnabled = data.ack_enabled;
+                // Fetch settings + meta
+                const [resSettings, resMeta] = await Promise.all([
+                    fetch('/api/settings'),
+                    fetch('/api/meta')
+                ]);
+
+                const dataSettings = await resSettings.json();
+                const dataMeta = await resMeta.json();
+
+                isAckEnabled = dataSettings.ack_enabled;
+                document.getElementById('vehicleCounter').textContent = dataMeta.vehicle_count;
+
                 updateToggleUI();
             } catch (e) {
                 console.error("Failed to fetch settings", e);

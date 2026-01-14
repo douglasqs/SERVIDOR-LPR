@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import TimedRotatingFileHandler
 import datetime
 import json
 import os
@@ -31,11 +32,34 @@ os.makedirs(IMAGE_FOLDER, exist_ok=True)
 
 # Global State
 ack_enabled = True  # If True, send 200 OK. If False, send 500/Error.
+# Global State
+ack_enabled = True  # If True, send 200 OK. If False, send 500/Error.
 events_log = []     # Store recent events in memory
 event_id_counter = 0
+vehicle_counter = 0 # Count only events with valid plates
 
-# Configure Logging to console
-logging.basicConfig(level=logging.INFO, format='[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+# Configure Logging
+# Create logs directory
+LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
+os.makedirs(LOG_DIR, exist_ok=True)
+
+# Base logger config
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Console Handler
+c_handler = logging.StreamHandler()
+c_handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+logger.addHandler(c_handler)
+
+# File Handler (Hourly Rotation)
+# when='h', interval=1 -> Rotates every hour
+# backupCount=168 -> Keep logs for 7 days (24 * 7)
+log_file = os.path.join(LOG_DIR, 'lpr_server.log')
+f_handler = TimedRotatingFileHandler(log_file, when='h', interval=1, backupCount=168, encoding='utf-8')
+f_handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+f_handler.suffix = "%Y-%m-%d_%Hh.log" # Suffix format for rotated files
+logger.addHandler(f_handler)
 
 def save_image_from_data(data):
     """
@@ -89,7 +113,7 @@ def save_image_from_data(data):
 
     return saved_paths
 
-def log_event(path, method, client_ip, data, status_code):
+def log_event(path, method, client_ip, data, status_code, log_to_file=False):
     global event_id_counter
     event_id_counter += 1
     
@@ -112,7 +136,19 @@ def log_event(path, method, client_ip, data, status_code):
     if len(events_log) > 100:
         events_log.pop(0)
     
-    print(f"[{entry['timestamp']}] # RECV {method} {path} from {client_ip} | Status: {status_code}")
+    # Log using standard logging interface
+    # If log_to_file is True, use logging.info (which goes to file)
+    # If False, use print (console only) or logging.debug if not configured to file
+    # Limitation: The current logger config sends INFO to both. 
+    # To split them, we would need separate handlers or filters.
+    # For simplicity: We will only call logging.info if log_to_file is True. 
+    # Otherwise just print to console to avoid spamming the log file.
+    
+    msg = f"# RECV {method} {path} from {client_ip} | Status: {status_code}"
+    if log_to_file:
+         logging.info(f"{msg} | Data: {json.dumps(entry['data'], ensure_ascii=False)}")
+    else:
+         print(f"[{entry['timestamp']}] {msg}")
 
 @app.route('/')
 def index():
@@ -134,6 +170,11 @@ def handle_settings():
             print(f"[*] Response Mode set to: {state_str}")
     return jsonify({"ack_enabled": ack_enabled})
 
+@app.route('/api/meta', methods=['GET'])
+def get_meta():
+    """Return metadata like counters."""
+    return jsonify({"vehicle_count": vehicle_counter})
+
 @app.route('/api/events', methods=['GET'])
 def get_events():
     return jsonify(events_log)
@@ -142,7 +183,7 @@ def get_events():
 
 @app.route('/NotificationInfo/TollgateInfo', methods=['POST'])
 def tollgate_info():
-    global ack_enabled
+    global ack_enabled, vehicle_counter
     
     try:
         data = request.json
@@ -155,6 +196,16 @@ def tollgate_info():
 
     client_ip = request.remote_addr
     
+    # Check for valid plate
+    has_valid_plate = False
+    try:
+        plate_number = data.get('Picture', {}).get('Plate', {}).get('PlateNumber')
+        if plate_number and plate_number != "unknown" and plate_number != "":
+            has_valid_plate = True
+            vehicle_counter += 1
+    except:
+        pass
+
     if ack_enabled:
         status_code = 200
         # Common DAHUA response for success
@@ -163,7 +214,11 @@ def tollgate_info():
         status_code = 500
         response_data = {"Result": False, "Message": "Simulated Error"}
 
-    log_event(request.path, request.method, client_ip, data, status_code)
+    # Log event
+    # Only write to file if it is a valid plate passage event (based on user request)
+    log_to_file = has_valid_plate
+    
+    log_event(request.path, request.method, client_ip, data, status_code, log_to_file=log_to_file)
     
     return jsonify(response_data), status_code
 
@@ -187,7 +242,8 @@ def device_info():
         status_code = 500
         response_data = {"Result": False, "Message": "Simulated Error"}
 
-    log_event(request.path, request.method, client_ip, data, status_code)
+    # Keep-alives usually don't need persistent file logging unless debugging
+    log_event(request.path, request.method, client_ip, data, status_code, log_to_file=False)
     return jsonify(response_data), status_code
 
 @app.route('/notification', methods=['POST'])
@@ -216,7 +272,7 @@ def notification_keepalive():
         status_code = 500
         response_data = {"Result": False, "Message": "Simulated Error"}
 
-    log_event(request.path, request.method, client_ip, data, status_code)
+    log_event(request.path, request.method, client_ip, data, status_code, log_to_file=False)
     
     return jsonify(response_data), status_code
 
