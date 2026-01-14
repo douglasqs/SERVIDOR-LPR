@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Servidor LPR DAHUA</title>
+    <!-- Use Tailwind CSS (via CDN for simplicity as requested, but keeping it inside the file for local run) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for better look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a202c;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #718096;
+        }
+
+        .plate-box {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 shadow-lg p-4 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <h1 class="text-2xl font-bold tracking-tight">Servidor <span class="text-blue-500">LPR</span></h1>
+            </div>
+
+            <!-- Main Control: Response Toggle -->
+            <div class="flex items-center bg-gray-700 rounded-full p-1 pl-4 space-x-3 border border-gray-600">
+                <span class="text-sm font-medium text-gray-300">Responder Câmera:</span>
+                <button id="toggleBtn" onclick="toggleAck()"
+                    class="relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 bg-green-600">
+                    <span id="toggleSlider"
+                        class="inline-block h-6 w-6 transform rounded-full bg-white transition duration-200 ease-in-out translate-x-9"></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Left: Event Feed -->
+        <div class="lg:col-span-2 space-y-4">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-semibold text-gray-200">Eventos Recebidos</h2>
+                <div class="flex space-x-2">
+                    <button onclick="clearLogs()"
+                        class="text-xs bg-red-900 hover:bg-red-800 text-red-100 py-1 px-3 rounded border border-red-700 transition">Limpar</button>
+                    <span id="statusIndicator"
+                        class="text-xs bg-green-900 text-green-100 py-1 px-3 rounded border border-green-700 animate-pulse">Online</span>
+                </div>
+            </div>
+
+            <div id="eventList" class="space-y-3">
+                <!-- Events will be injected here -->
+                <div class="text-center text-gray-500 py-10 italic">Aguardando eventos...</div>
+            </div>
+        </div>
+
+        <!-- Right: Recent/Selected Details -->
+        <div class="lg:col-span-1">
+            <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 sticky top-24 shadow-xl">
+                <h3 class="text-lg font-medium text-gray-300 mb-4 border-b border-gray-700 pb-2">Detalhes do Último
+                    Evento</h3>
+                <div id="detailView">
+                    <div
+                        class="aspect-video bg-gray-900 rounded-lg flex items-center justify-center border border-gray-700 mb-4 overflow-hidden relative">
+                        <!-- Placeholder for Image -->
+                        <img id="detailImage" src="" class="hidden w-full h-full object-cover" />
+                        <span id="noDetailImage" class="text-gray-600">Sem Imagem</span>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="bg-gray-900 p-3 rounded border border-gray-700 flex justify-between items-center">
+                            <span class="text-gray-400 text-sm">Placa</span>
+                            <span id="detailPlate" class="text-2xl plate-box text-yellow-500">---</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
+                                <div class="text-gray-500 text-xs uppercase">Cor</div>
+                                <div id="detailColor" class="text-gray-200 font-medium">-</div>
+                            </div>
+                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
+                                <div class="text-gray-500 text-xs uppercase">Tipo</div>
+                                <div id="detailType" class="text-gray-200 font-medium">-</div>
+                            </div>
+                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
+                                <div class="text-gray-500 text-xs uppercase">Confiança</div>
+                                <div id="detailConfidence" class="text-gray-200 font-medium">-</div>
+                            </div>
+                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
+                                <div class="text-gray-500 text-xs uppercase">Tempo</div>
+                                <div id="detailTime" class="text-gray-200 text-xs font-mono truncate">-</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <div class="text-gray-500 text-xs mb-1">JSON Bruto</div>
+                            <pre id="detailJson"
+                                class="bg-black text-green-400 text-xs p-2 rounded overflow-x-auto h-32 border border-green-900/30 font-mono">---</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        let isAckEnabled = true;
+        let lastEventId = 0;
+
+        // On Load
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchSettings();
+            setInterval(fetchEvents, 1000);
+        });
+
+        async function fetchSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                const data = await res.json();
+                isAckEnabled = data.ack_enabled;
+                updateToggleUI();
+            } catch (e) {
+                console.error("Failed to fetch settings", e);
+            }
+        }
+
+        async function toggleAck() {
+            isAckEnabled = !isAckEnabled;
+            updateToggleUI(); // Optimistic update
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ack_enabled: isAckEnabled })
+                });
+                const data = await res.json();
+                isAckEnabled = data.ack_enabled;
+                updateToggleUI();
+            } catch (e) {
+                console.error("Failed to toggle", e);
+                // Revert if failed
+                isAckEnabled = !isAckEnabled;
+                updateToggleUI();
+            }
+        }
+
+        function updateToggleUI() {
+            const btn = document.getElementById('toggleBtn');
+            const slider = document.getElementById('toggleSlider');
+
+            if (isAckEnabled) {
+                btn.classList.remove('bg-red-600');
+                btn.classList.add('bg-green-600');
+                slider.classList.remove('translate-x-1');
+                slider.classList.add('translate-x-9');
+            } else {
+                btn.classList.remove('bg-green-600');
+                btn.classList.add('bg-red-600');
+                slider.classList.remove('translate-x-9');
+                slider.classList.add('translate-x-1');
+            }
+        }
+
+        async function fetchEvents() {
+            try {
+                const res = await fetch('/api/events');
+                const events = await res.json();
+
+                // Filter new events
+                const newEvents = events.filter(e => e.id > lastEventId);
+                if (newEvents.length > 0) {
+                    lastEventId = newEvents[newEvents.length - 1].id;
+                    renderEvents(newEvents);
+                    // Update detail view with the latest one automatically
+                    updateDetail(newEvents[newEvents.length - 1]);
+                }
+            } catch (e) {
+                console.error("Polling error", e);
+                document.getElementById('statusIndicator').classList.remove('bg-green-900', 'text-green-100');
+                document.getElementById('statusIndicator').classList.add('bg-gray-600', 'text-gray-300');
+                document.getElementById('statusIndicator').textContent = 'Offline?';
+            }
+        }
+
+        function renderEvents(logList) {
+            const container = document.getElementById('eventList');
+            // Remove "Waiting..." msg if exists
+            if (container.children.length === 1 && container.children[0].textContent.includes('Aguardando')) {
+                container.innerHTML = '';
+            }
+
+            logList.forEach(log => {
+                const isError = log.status >= 400;
+                const statusColor = isError ? 'text-red-400' : 'text-green-400';
+
+                const card = document.createElement('div');
+                card.className = "bg-gray-800 border-l-4 " + (isError ? "border-red-500" : "border-green-500") + " p-4 rounded shadow hover:bg-gray-750 transition duration-150 cursor-pointer";
+                card.onclick = () => updateDetail(log);
+
+                const picture = log.data?.Picture || {};
+                const plate = picture.Plate?.PlateNumber || "Sem Placa";
+                const snapTime = picture.SnapInfo?.SnapTime || new Date().toLocaleTimeString();
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center space-x-2">
+                                <span class="bg-gray-900 text-yellow-500 px-2 py-0.5 rounded font-mono font-bold">${plate}</span>
+                                <span class="text-xs text-gray-400">${snapTime}</span>
+                            </div>
+                            <div class="text-xs text-gray-500 mt-1">${log.method} ${log.path}</div>
+                        </div>
+                        <div class="text-right">
+                             <div class="font-bold ${statusColor}">Status: ${log.status}</div>
+                             <div class="text-xs text-gray-500">${log.client_ip}</div>
+                        </div>
+                    </div>
+                `;
+
+                // Prepend
+                container.insertBefore(card, container.firstChild);
+            });
+
+            // Limit list size
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+        }
+
+        function updateDetail(log) {
+            const picture = log.data?.Picture || {};
+            const plateInfo = picture.Plate || {};
+            const vehicleInfo = picture.Vehicle || {};
+            const snapInfo = picture.SnapInfo || {};
+
+            document.getElementById('detailPlate').textContent = plateInfo.PlateNumber || "N/A";
+            document.getElementById('detailColor').textContent = vehicleInfo.VehicleColor || plateInfo.PlateColor || "-";
+            document.getElementById('detailType').textContent = vehicleInfo.VehicleType || "-";
+            document.getElementById('detailConfidence').textContent = plateInfo.Confidence ? plateInfo.Confidence + "%" : "-";
+            document.getElementById('detailTime').textContent = snapInfo.SnapTime || "-";
+
+            document.getElementById('detailJson').textContent = JSON.stringify(log.data, null, 2);
+
+            const imgEl = document.getElementById('detailImage');
+            const noImgEl = document.getElementById('noDetailImage');
+
+            // Determine Image Source
+            // Priority: Saved paths (Normal > Cutout > Plate) > Base64 (fallback)
+            const savedImages = log.images || {};
+            let imgSrc = null;
+
+            if (savedImages.NormalPic) {
+                imgSrc = "/images/" + savedImages.NormalPic;
+            } else if (savedImages.CutoutPic) {
+                imgSrc = "/images/" + savedImages.CutoutPic;
+            } else if (savedImages.PlatePic) {
+                imgSrc = "/images/" + savedImages.PlatePic;
+            } else {
+                // Fallback to checking loose base64 if not replaced
+                const b64 = picture.CutoutPic?.Content || picture.PlatePic?.Content;
+                if (b64 && b64.length > 100 && !b64.startsWith("[SAVED")) {
+                    imgSrc = "data:image/jpeg;base64," + b64;
+                }
+            }
+
+            if (imgSrc) {
+                imgEl.src = imgSrc;
+                imgEl.classList.remove('hidden');
+                noImgEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                noImgEl.classList.remove('hidden');
+            }
+        }
+
+        async function clearLogs() {
+            // In a real app we might ask backend to clear, but here we just clear UI for now
+            document.getElementById('eventList').innerHTML = '<div class="text-center text-gray-500 py-10 italic">Logs limpos...</div>';
+        }
+    </script>
+</body>
+
+</html>
