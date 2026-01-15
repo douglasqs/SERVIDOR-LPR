@@ -63,6 +63,18 @@
                             class="inline-block h-6 w-6 transform rounded-full bg-white transition duration-200 ease-in-out translate-x-9"></span>
                     </button>
                 </div>
+
+                <!-- Settings Button -->
+                <button onclick="openSettings()"
+                    class="text-gray-400 hover:text-white transition p-2 rounded-full hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543 .826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
             </div>
         </div>
     </header>
@@ -138,13 +150,71 @@
 
     </main>
 
+    <!-- Settings Modal -->
+    <div id="settingsModal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg border border-gray-700">
+            <h2 class="text-xl font-bold text-white mb-4 flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-500" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543 .826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Configurações
+            </h2>
+
+            <div class="space-y-4">
+
+                <!-- Port -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Porta do Servidor</label>
+                    <input type="number" id="settingPort"
+                        class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 custom-spin"
+                        placeholder="ex: 30000">
+                    <p class="text-xs text-yellow-500 mt-1 hidden" id="portWarning">⚠ Alterar a porta requer reiniciar o
+                        aplicativo manualmente.</p>
+                </div>
+
+                <!-- Image Folder -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-400 mb-1">Caminho para Salvar Imagens</label>
+                    <input type="text" id="settingFolder"
+                        class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                        placeholder="C:\Users\Exemplo\Desktop\Images">
+                    <p class="text-xs text-gray-500 mt-1">Use caminho absoluto.</p>
+                </div>
+
+                <!-- Save Images Toggle -->
+                <div class="flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700">
+                    <span class="text-gray-300 font-medium">Salvar Imagens no Disco</span>
+                    <label class="inline-flex relative items-center cursor-pointer">
+                        <input type="checkbox" id="settingSaveImages" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                        </div>
+                    </label>
+                </div>
+
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button onclick="closeSettings()"
+                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition">Cancelar</button>
+                <button onclick="saveSettings()"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-medium transition shadow-lg">Salvar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let isAckEnabled = true;
         let lastEventId = 0;
+        let currentSettings = {};
 
         // On Load
         document.addEventListener('DOMContentLoaded', () => {
-            fetchSettings();
             fetchSettings();
             setInterval(fetchEvents, 1000);
             setInterval(fetchSettings, 5000); // Poll counter every 5s
@@ -161,6 +231,7 @@
                 const dataSettings = await resSettings.json();
                 const dataMeta = await resMeta.json();
 
+                currentSettings = dataSettings;
                 isAckEnabled = dataSettings.ack_enabled;
                 document.getElementById('vehicleCounter').textContent = dataMeta.vehicle_count;
 
@@ -174,6 +245,7 @@
             isAckEnabled = !isAckEnabled;
             updateToggleUI(); // Optimistic update
 
+            // Just update the ack_enabled field
             try {
                 const res = await fetch('/api/settings', {
                     method: 'POST',
@@ -323,6 +395,66 @@
         async function clearLogs() {
             // In a real app we might ask backend to clear, but here we just clear UI for now
             document.getElementById('eventList').innerHTML = '<div class="text-center text-gray-500 py-10 italic">Logs limpos...</div>';
+        }
+
+        // --- Settings Modal Logic ---
+        function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            modal.classList.remove('hidden');
+
+            // Populate fields
+            document.getElementById('settingPort').value = currentSettings.port || 30000;
+            document.getElementById('settingFolder').value = currentSettings.image_folder || '';
+            document.getElementById('settingSaveImages').checked = currentSettings.save_images !== false;
+
+            // Port warning logic
+            document.getElementById('settingPort').oninput = function () {
+                const oldPort = currentSettings.port;
+                const newPort = parseInt(this.value);
+                const warning = document.getElementById('portWarning');
+                if (newPort !== oldPort) {
+                    warning.classList.remove('hidden');
+                } else {
+                    warning.classList.add('hidden');
+                }
+            };
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('portWarning').classList.add('hidden');
+        }
+
+        async function saveSettings() {
+            const newPort = parseInt(document.getElementById('settingPort').value);
+            const newFolder = document.getElementById('settingFolder').value;
+            const newSaveImages = document.getElementById('settingSaveImages').checked;
+
+            const payload = {
+                port: newPort,
+                image_folder: newFolder,
+                save_images: newSaveImages
+            };
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    currentSettings = data;
+                    closeSettings();
+                    // Alert?
+                } else {
+                    alert("Erro ao salvar!");
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Erro ao salvar: " + e);
+            }
         }
     </script>
 </body>

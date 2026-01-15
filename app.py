@@ -21,19 +21,57 @@ else:
     # Running in normal python environment
     app = Flask(__name__)
 
-# --- Configuration ---
-HOST = '0.0.0.0'
-PORT = 30000
+# --- Configuration Management ---
+CONFIG_FILE = 'config.json'
 
-# Folder to save images (matches push-notification.py logic)
-DESKTOP_PATH = os.path.join(os.path.expanduser('~'), 'Desktop')
-IMAGE_FOLDER = os.path.join(DESKTOP_PATH, 'Tollgate_Images')
-os.makedirs(IMAGE_FOLDER, exist_ok=True)
+DEFAULT_CONFIG = {
+    "port": 30000,
+    "image_folder": os.path.join(os.path.join(os.path.expanduser('~'), 'Desktop'), 'Tollgate_Images'),
+    "save_images": True,
+    "ack_enabled": True
+}
+
+server_config = {}
+
+def load_config():
+    global server_config
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r') as f:
+                loaded = json.load(f)
+                # Merge with defaults to ensure all keys exist
+                server_config = DEFAULT_CONFIG.copy()
+                server_config.update(loaded)
+        except Exception as e:
+            print(f"[!] Error loading config: {e}")
+            server_config = DEFAULT_CONFIG.copy()
+    else:
+        server_config = DEFAULT_CONFIG.copy()
+        save_config()
+
+def save_config():
+    try:
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(server_config, f, indent=4)
+        print("[*] Configuration saved.")
+    except Exception as e:
+        print(f"[!] Error saving config: {e}")
+
+# Initialize Config
+load_config()
+
+# Ensure Image Folder Exists
+if not os.path.exists(server_config['image_folder']):
+    try:
+        os.makedirs(server_config['image_folder'], exist_ok=True)
+    except OSError:
+        # Fallback if path is invalid
+        print(f"[!] Invalid path {server_config['image_folder']}, reverting to default.")
+        server_config['image_folder'] = DEFAULT_CONFIG['image_folder']
+        os.makedirs(server_config['image_folder'], exist_ok=True)
+
 
 # Global State
-ack_enabled = True  # If True, send 200 OK. If False, send 500/Error.
-# Global State
-ack_enabled = True  # If True, send 200 OK. If False, send 500/Error.
 events_log = []     # Store recent events in memory
 event_id_counter = 0
 vehicle_counter = 0 # Count only events with valid plates
@@ -72,6 +110,16 @@ def save_image_from_data(data):
     if not isinstance(data, dict):
         return saved_paths
 
+    # Check if image saving is enabled
+    if not server_config.get('save_images', True):
+        # We still want to remove base64 content to save memory in logs/UI
+        # But we won't write to disk.
+        # However, checking the logic below, it removes content ONLY if it saves.
+        # We should probably strip the content anyway if we are not saving?
+        # For now let's just proceed. The original logic replaced content with SAVED_TO_DISK string.
+        # If we don't save, we should replace it with [NOT_SAVED] or similar to avoid memory bloat.
+        pass
+
     picture_data = data.get('Picture', {})
     if not picture_data:
         return saved_paths
@@ -86,30 +134,43 @@ def save_image_from_data(data):
             if not content:
                 continue
                 
-            # Generate a filename
-            # Prefer PicName from payload, otherwise generate one
-            original_name = pic_info.get('PicName', f"{key}_{datetime.datetime.now().strftime('%H%M%S%f')}.jpg")
-            
-            # Ensure unique filename to prevent overwrites if names are generic
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{timestamp}_{original_name}"
-            file_path = os.path.join(IMAGE_FOLDER, filename)
-            
-            try:
-                # Decode and save
-                image_bytes = base64.b64decode(content)
-                with open(file_path, 'wb') as f:
-                    f.write(image_bytes)
+            if server_config.get('save_images', True):
+                # Generate a filename
+                # Prefer PicName from payload, otherwise generate one
+                original_name = pic_info.get('PicName', f"{key}_{datetime.datetime.now().strftime('%H%M%S%f')}.jpg")
                 
-                # Store the filename to be served later
-                saved_paths[key] = filename
+                # Ensure unique filename to prevent overwrites if names are generic
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"{timestamp}_{original_name}"
+                current_image_folder = server_config.get('image_folder', DEFAULT_CONFIG['image_folder'])
                 
-                # Remove base64 content from memory object to save space
-                pic_info['Content'] = f"[SAVED_TO_DISK: {filename}]"
-                pic_info['HostedURL'] = f"/images/{filename}"
+                # Make sure folder exists (in case it was changed at runtime)
+                if not os.path.exists(current_image_folder):
+                    try:
+                        os.makedirs(current_image_folder, exist_ok=True)
+                    except:
+                        pass # Should log error
+
+                file_path = os.path.join(current_image_folder, filename)
                 
-            except Exception as e:
-                print(f"[!] Error saving image {key}: {e}")
+                try:
+                    # Decode and save
+                    image_bytes = base64.b64decode(content)
+                    with open(file_path, 'wb') as f:
+                        f.write(image_bytes)
+                    
+                    # Store the filename to be served later
+                    saved_paths[key] = filename
+                    
+                    # Remove base64 content from memory object to save space
+                    pic_info['Content'] = f"[SAVED_TO_DISK: {filename}]"
+                    pic_info['HostedURL'] = f"/images/{filename}"
+                    
+                except Exception as e:
+                    print(f"[!] Error saving image {key}: {e}")
+            else:
+                 # Saving disabled - strip content to save RAM
+                 pic_info['Content'] = "[SAVING_DISABLED]"
 
     return saved_paths
 
@@ -156,19 +217,44 @@ def index():
 
 @app.route('/images/<path:filename>')
 def serve_image(filename):
-    """Serve images from the Tollgate_Images folder on Desktop."""
-    return send_from_directory(IMAGE_FOLDER, filename)
+    """Serve images from the configured folder."""
+    return send_from_directory(server_config['image_folder'], filename)
 
 @app.route('/api/settings', methods=['GET', 'POST'])
 def handle_settings():
-    global ack_enabled
     if request.method == 'POST':
         data = request.json
+        
+        updated = False
         if 'ack_enabled' in data:
-            ack_enabled = bool(data['ack_enabled'])
-            state_str = "ENABLED" if ack_enabled else "DISABLED"
-            print(f"[*] Response Mode set to: {state_str}")
-    return jsonify({"ack_enabled": ack_enabled})
+            server_config['ack_enabled'] = bool(data['ack_enabled'])
+            updated = True
+            
+        if 'port' in data:
+            try:
+                p = int(data['port'])
+                if 1024 <= p <= 65535:
+                    server_config['port'] = p
+                    updated = True
+            except ValueError:
+                pass
+                
+        if 'image_folder' in data:
+            path = data['image_folder']
+            if path and os.path.isdir(os.path.dirname(os.path.abspath(path))): # Basic check
+                server_config['image_folder'] = path
+                updated = True
+                # Try create it now
+                os.makedirs(path, exist_ok=True)
+
+        if 'save_images' in data:
+            server_config['save_images'] = bool(data['save_images'])
+            updated = True
+
+        if updated:
+            save_config()
+            
+    return jsonify(server_config)
 
 @app.route('/api/meta', methods=['GET'])
 def get_meta():
@@ -183,7 +269,9 @@ def get_events():
 
 @app.route('/NotificationInfo/TollgateInfo', methods=['POST'])
 def tollgate_info():
-    global ack_enabled, vehicle_counter
+    global vehicle_counter
+    
+    ack_enabled = server_config.get('ack_enabled', True)
     
     try:
         data = request.json
@@ -224,7 +312,7 @@ def tollgate_info():
 
 @app.route('/NotificationInfo/DeviceInfo', methods=['POST'])
 def device_info():
-    global ack_enabled
+    ack_enabled = server_config.get('ack_enabled', True)
     
     try:
         data = request.json
@@ -254,7 +342,7 @@ def notification_keepalive():
     Handle recurring keepalive/heartbeat messages.
     Expected response is often empty JSON {} with 200 OK.
     """
-    global ack_enabled
+    ack_enabled = server_config.get('ack_enabled', True)
     
     try:
         data = request.json
@@ -277,12 +365,13 @@ def notification_keepalive():
     return jsonify(response_data), status_code
 
 def start_server():
-    app.run(host=HOST, port=PORT, debug=False, use_reloader=False)
+    port = server_config.get('port', 30000)
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 if __name__ == '__main__':
-    print(f"[*] Starting LPR Server on port {PORT}")
-    print(f"[*] Images will be saved to: {IMAGE_FOLDER}")
-    print(f"[*] Default Response Mode: {'ENABLED' if ack_enabled else 'DISABLED'}")
+    port = server_config.get('port', 30000)
+    print(f"[*] Starting LPR Server on port {port}")
+    print(f"[*] Config: {server_config}")
     
     # Run the server in a separate thread
     t = threading.Thread(target=start_server)
@@ -290,5 +379,5 @@ if __name__ == '__main__':
     t.start()
 
     # Open the GUI window
-    webview.create_window("LPR Server Interface", f"http://127.0.0.1:{PORT}")
+    webview.create_window("LPR Server Interface", f"http://127.0.0.1:{port}")
     webview.start()

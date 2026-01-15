@@ -1,0 +1,6 @@
+{
+    "port": 30000,
+    "image_folder": "C:\\Users\\do053261\\Desktop\\Tollgate_Images",
+    "save_images": true,
+    "ack_enabled": true
+}
