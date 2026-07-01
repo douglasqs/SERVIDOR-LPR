@@ -1,6 +1,8 @@
 {
-    "port": 30000,
-    "image_folder": "C:\\Users\\do053261\\Desktop\\Tollgate_Images",
-    "save_images": true,
-    "ack_enabled": true
+    "server_host": "0.0.0.0",
+    "port": 40800,
+    "ack_enabled": true,
+    "device_user": "admin",
+    "device_password": "Hikvision",
+    "remote_verify_enabled": true
 }

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+logs/
+captured_images/
+webview_data/
+error.log
+build/
+*.spec

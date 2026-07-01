@@ -4,248 +4,1303 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Servidor LPR DAHUA</title>
-    <!-- Use Tailwind CSS (via CDN for simplicity as requested, but keeping it inside the file for local run) -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>multimo - Tester Hikvision</title>
     <style>
-        /* Custom scrollbar for better look */
+        :root {
+            color-scheme: dark;
+            --bg: #0f1215;
+            --surface: #171b20;
+            --surface-2: #1f252c;
+            --surface-3: #252c35;
+            --line: #303844;
+            --line-soft: rgba(255, 255, 255, 0.08);
+            --text: #f4f7fa;
+            --muted: #9aa6b2;
+            --faint: #687481;
+            --red: #ef4444;
+            --red-soft: rgba(239, 68, 68, 0.14);
+            --amber: #f59e0b;
+            --amber-soft: rgba(245, 158, 11, 0.15);
+            --green: #22c55e;
+            --green-soft: rgba(34, 197, 94, 0.15);
+            --blue: #38bdf8;
+            --shadow: 0 16px 44px rgba(0, 0, 0, 0.28);
+            --radius: 8px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            min-width: 320px;
+            background: var(--bg);
+        }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 320px),
+                var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        button,
+        input,
+        select {
+            font: inherit;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        button:disabled {
+            cursor: default;
+            opacity: 0.55;
+        }
+
         ::-webkit-scrollbar {
-            width: 8px;
+            width: 10px;
+            height: 10px;
         }
 
         ::-webkit-scrollbar-track {
-            background: #1a202c;
+            background: #101419;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 4px;
+            background: #3a4450;
+            border: 2px solid #101419;
+            border-radius: 999px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #718096;
+            background: #596675;
         }
 
-        .plate-box {
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            letter-spacing: 2px;
+        .hidden {
+            display: none !important;
+        }
+
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            border-bottom: 1px solid var(--line-soft);
+            background: rgba(15, 18, 21, 0.94);
+            backdrop-filter: blur(16px);
+        }
+
+        .header-inner,
+        .app-main {
+            width: min(1480px, calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        .header-inner {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) auto;
+            gap: 16px;
+            align-items: center;
+            padding: 14px 0;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            min-width: 0;
+            gap: 12px;
+        }
+
+        .brand-mark {
+            display: grid;
+            flex: 0 0 42px;
+            width: 42px;
+            height: 42px;
+            place-items: center;
+            border: 1px solid rgba(239, 68, 68, 0.45);
+            border-radius: var(--radius);
+            background: linear-gradient(145deg, rgba(239, 68, 68, 0.22), rgba(56, 189, 248, 0.10));
+            color: #ffffff;
+            font-size: 23px;
+            font-weight: 800;
+            letter-spacing: 0;
+            text-transform: lowercase;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10);
+        }
+
+        .brand-title {
+            min-width: 0;
+        }
+
+        .brand-title h1 {
+            margin: 0;
+            overflow: hidden;
+            color: #ffffff;
+            font-size: 22px;
+            font-weight: 760;
+            letter-spacing: 0;
+            line-height: 1.1;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .brand-title span {
+            display: block;
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .header-actions {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+            min-width: 0;
+            gap: 10px;
+        }
+
+        .counter {
+            display: grid;
+            grid-template-columns: auto auto;
+            align-items: center;
+            min-height: 38px;
+            gap: 8px;
+            padding: 7px 10px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface-2);
+        }
+
+        .counter-label {
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 750;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .counter-value {
+            min-width: 24px;
+            justify-self: end;
+            text-align: right;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 19px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .counter--access .counter-value {
+            color: #ff7a7a;
+        }
+
+        .counter--anpr {
+            border-color: rgba(245, 158, 11, 0.38);
+        }
+
+        .counter--anpr .counter-value {
+            color: #fbbf24;
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            min-height: 38px;
+            gap: 9px;
+            padding: 6px 8px 6px 11px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface-2);
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .switch {
+            position: relative;
+            flex: 0 0 auto;
+            width: 54px;
+            height: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 999px;
+            background: #6f1d1d;
+            transition: background 160ms ease, border-color 160ms ease;
+        }
+
+        .switch:focus-visible,
+        .icon-button:focus-visible,
+        .toolbar-button:focus-visible,
+        .modal-action:focus-visible,
+        .copy-button:focus-visible,
+        .pin-close:focus-visible,
+        .form-field:focus-visible {
+            outline: 2px solid rgba(56, 189, 248, 0.85);
+            outline-offset: 2px;
+        }
+
+        .switch-knob {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            border-radius: 999px;
+            background: #ffffff;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+            transition: transform 160ms ease;
+        }
+
+        .switch.is-on {
+            border-color: rgba(34, 197, 94, 0.45);
+            background: #14783c;
+        }
+
+        .switch.is-on .switch-knob {
+            transform: translateX(26px);
+        }
+
+        .icon-button {
+            display: grid;
+            width: 38px;
+            height: 38px;
+            place-items: center;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface-2);
+            color: var(--muted);
+            transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+        }
+
+        .icon-button:hover {
+            border-color: #46515f;
+            background: var(--surface-3);
+            color: #ffffff;
+        }
+
+        .icon {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .app-main {
+            display: grid;
+            grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.85fr);
+            gap: 20px;
+            align-items: start;
+            padding: 22px 0 28px;
+        }
+
+        .panel {
+            min-width: 0;
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius);
+            background: rgba(23, 27, 32, 0.92);
+            box-shadow: var(--shadow);
+        }
+
+        .feed-panel {
+            box-shadow: none;
+            background: transparent;
+            border: 0;
+        }
+
+        .section-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            min-width: 0;
+            gap: 10px;
+            margin: 0;
+            color: #ffffff;
+            font-size: 17px;
+            font-weight: 750;
+            letter-spacing: 0;
+        }
+
+        .live-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 999px;
+            background: var(--green);
+            box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.12);
+            animation: pulse-dot 1.6s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.45;
+            }
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        .toolbar-button,
+        .status-pill,
+        .copy-button,
+        .modal-action {
+            min-height: 32px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            transition: background 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+        }
+
+        .toolbar-button {
+            padding: 6px 11px;
+            background: var(--surface-2);
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 740;
+        }
+
+        .toolbar-button:hover,
+        .toolbar-button.is-active {
+            border-color: #566273;
+            background: var(--surface-3);
+            color: #ffffff;
+        }
+
+        .toolbar-button--clear {
+            border-color: rgba(239, 68, 68, 0.42);
+            background: var(--red-soft);
+            color: #ffb4b4;
+        }
+
+        .toolbar-button--clear:hover {
+            border-color: rgba(239, 68, 68, 0.68);
+            background: rgba(239, 68, 68, 0.22);
+            color: #ffffff;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            min-width: 74px;
+            justify-content: center;
+            padding: 6px 11px;
+            border-color: rgba(34, 197, 94, 0.42);
+            background: var(--green-soft);
+            color: #b8f7ce;
+            font-size: 12px;
+            font-weight: 780;
+        }
+
+        .status-pill.is-offline {
+            border-color: rgba(154, 166, 178, 0.35);
+            background: rgba(154, 166, 178, 0.12);
+            color: #c7d0da;
+        }
+
+        .event-list {
+            display: grid;
+            gap: 10px;
+        }
+
+        .empty-state {
+            display: grid;
+            min-height: 190px;
+            place-items: center;
+            border: 1px dashed #333c48;
+            border-radius: var(--radius);
+            background: rgba(23, 27, 32, 0.56);
+            color: var(--faint);
+            font-weight: 650;
+        }
+
+        .event-card {
+            position: relative;
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            gap: 12px;
+            align-items: center;
+            min-height: 82px;
+            padding: 12px;
+            overflow: hidden;
+            border: 1px solid var(--line-soft);
+            border-left: 4px solid var(--green);
+            border-radius: var(--radius);
+            background: var(--surface);
+            color: inherit;
+            font: inherit;
+            text-align: left;
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+            transition: transform 150ms ease, border-color 150ms ease, background 150ms ease;
+        }
+
+        .event-card:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255, 255, 255, 0.18);
+            background: #1c2229;
+        }
+
+        .event-card.is-pinned {
+            border-color: rgba(245, 158, 11, 0.78);
+            box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18), 0 14px 34px rgba(0, 0, 0, 0.28);
+        }
+
+        .event-card--anpr {
+            border-left-color: var(--amber);
+        }
+
+        .event-card--error {
+            border-left-color: var(--red);
+        }
+
+        .event-thumb {
+            width: 58px;
+            height: 58px;
+            object-fit: cover;
+            border: 1px solid var(--line);
+            border-radius: 7px;
+            background: #060708;
+        }
+
+        .event-main {
+            display: block;
+            min-width: 0;
+        }
+
+        .event-title {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            min-width: 0;
+            gap: 8px;
+        }
+
+        .event-device,
+        .anpr-badge {
+            display: inline-flex;
+            align-items: center;
+            max-width: min(420px, 100%);
+            min-height: 24px;
+            padding: 3px 8px;
+            border-radius: 7px;
+            font-weight: 780;
+            white-space: nowrap;
+        }
+
+        .event-device {
+            overflow: hidden;
+            background: rgba(239, 68, 68, 0.12);
+            color: #ff8f8f;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 13px;
+            text-overflow: ellipsis;
+        }
+
+        .anpr-badge {
+            background: var(--amber-soft);
+            color: #fbd38d;
+            font-size: 11px;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        .plate-number {
+            color: #ffd56a;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 18px;
+            font-weight: 850;
+            letter-spacing: 0.12em;
+            white-space: nowrap;
+        }
+
+        .event-time,
+        .event-subtitle,
+        .event-client {
+            color: var(--faint);
+            font-size: 12px;
+        }
+
+        .event-time {
+            overflow-wrap: anywhere;
+        }
+
+        .event-subtitle {
+            display: block;
+            margin-top: 5px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .event-status {
+            display: grid;
+            justify-items: end;
+            gap: 3px;
+            min-width: 92px;
+            color: var(--muted);
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+        }
+
+        .status-code {
+            color: #86efac;
+            font-family: "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        .status-code--error {
+            color: #ff8f8f;
+        }
+
+        .detail-panel {
+            position: sticky;
+            top: 86px;
+            max-height: calc(100vh - 108px);
+            overflow: auto;
+            padding: 14px;
+        }
+
+        .panel-heading {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .panel-heading h2 {
+            margin: 0;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: 760;
+            letter-spacing: 0;
+        }
+
+        .pin-indicator {
+            align-items: center;
+            gap: 7px;
+            color: #ffd56a;
+            font-size: 12px;
+            font-weight: 760;
+        }
+
+        .pin-indicator:not(.hidden) {
+            display: inline-flex;
+        }
+
+        .pin-close {
+            display: grid;
+            width: 24px;
+            height: 24px;
+            place-items: center;
+            border: 1px solid rgba(245, 158, 11, 0.28);
+            border-radius: 7px;
+            background: rgba(245, 158, 11, 0.10);
+            color: #ffd56a;
+            font-size: 18px;
+            line-height: 1;
+        }
+
+        .pin-close:hover {
+            border-color: rgba(239, 68, 68, 0.54);
+            color: #ff9b9b;
+        }
+
+        .detail-content {
+            min-width: 0;
+            padding-top: 14px;
+        }
+
+        .plate-panel {
+            margin-bottom: 12px;
+            padding: 12px;
+            border: 1px solid rgba(245, 158, 11, 0.34);
+            border-radius: var(--radius);
+            background: var(--amber-soft);
+        }
+
+        .plate-label {
+            color: #fbd38d;
+            font-size: 11px;
+            font-weight: 780;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .plate-large {
+            margin: 4px 0 10px;
+            color: #ffe08a;
+            text-align: center;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 32px;
+            font-weight: 900;
+            letter-spacing: 0.14em;
+            overflow-wrap: anywhere;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+        }
+
+        .metric-grid--two {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: 8px;
+        }
+
+        .metric {
+            min-width: 0;
+            padding: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 7px;
+            background: rgba(0, 0, 0, 0.12);
+            text-align: center;
+        }
+
+        .metric-label,
+        .field-label,
+        .json-label {
+            color: var(--faint);
+            font-size: 11px;
+            font-weight: 760;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .metric-value {
+            margin-top: 2px;
+            overflow: hidden;
+            color: #ffe08a;
+            font-size: 13px;
+            font-weight: 800;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .detail-stack {
+            display: grid;
+            gap: 10px;
+        }
+
+        .field-primary,
+        .field,
+        .image-box,
+        .json-box {
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius);
+            background: rgba(10, 12, 15, 0.62);
+        }
+
+        .field-primary {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            gap: 12px;
+            padding: 11px;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .field {
+            min-width: 0;
+            padding: 10px;
+        }
+
+        .field-value {
+            margin-top: 3px;
+            overflow-wrap: anywhere;
+            color: #dfe7ef;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        .field-value--device {
+            overflow: hidden;
+            color: #ff8f8f;
+            text-align: right;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .field-value--anpr {
+            color: #ffd56a;
+        }
+
+        .image-box {
+            padding: 10px;
+        }
+
+        .image-frame {
+            display: grid;
+            height: 210px;
+            margin-top: 8px;
+            overflow: hidden;
+            place-items: center;
+            border: 1px solid #090b0e;
+            border-radius: 7px;
+            background: #050607;
+        }
+
+        .image-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .no-image {
+            color: #5f6975;
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        .json-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .copy-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 9px;
+            background: var(--surface-2);
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 720;
+        }
+
+        .copy-button:hover {
+            border-color: #46515f;
+            background: var(--surface-3);
+            color: #ffffff;
+        }
+
+        .copy-button.is-copied {
+            border-color: rgba(34, 197, 94, 0.52);
+            background: var(--green-soft);
+            color: #b8f7ce;
+        }
+
+        .json-box {
+            min-height: 188px;
+            max-height: 45vh;
+            margin: 8px 0 0;
+            overflow: auto;
+            padding: 10px;
+            color: #9ef0b4;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            z-index: 30;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            background: rgba(0, 0, 0, 0.58);
+            backdrop-filter: blur(10px);
+        }
+
+        .modal-card {
+            width: min(100%, 460px);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
+        }
+
+        .modal-header,
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .modal-header h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+            color: #ffffff;
+            font-size: 17px;
+            font-weight: 760;
+        }
+
+        .modal-body {
+            display: grid;
+            gap: 14px;
+            padding: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            gap: 6px;
+        }
+
+        .form-row label {
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 740;
+        }
+
+        .form-field {
+            width: 100%;
+            min-height: 39px;
+            padding: 8px 10px;
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: #0c0f12;
+            color: #ffffff;
+        }
+
+        .form-help {
+            margin: 0;
+            color: var(--faint);
+            font-size: 12px;
+        }
+
+        .form-help--warning {
+            color: #ffd56a;
+        }
+
+        .modal-footer {
+            justify-content: flex-end;
+            border-top: 1px solid var(--line-soft);
+        }
+
+        .modal-action {
+            min-width: 92px;
+            padding: 8px 13px;
+            font-weight: 750;
+        }
+
+        .modal-action--ghost {
+            background: var(--surface-2);
+            color: var(--muted);
+        }
+
+        .modal-action--ghost:hover {
+            background: var(--surface-3);
+            color: #ffffff;
+        }
+
+        .modal-action--primary {
+            border-color: rgba(239, 68, 68, 0.58);
+            background: #dc2626;
+            color: #ffffff;
+        }
+
+        .modal-action--primary:hover {
+            background: #ef4444;
+        }
+
+        @media (max-width: 1120px) {
+            .header-inner {
+                grid-template-columns: 1fr;
+            }
+
+            .header-actions {
+                justify-content: flex-start;
+            }
+
+            .app-main {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-panel {
+                position: static;
+                max-height: none;
+            }
+        }
+
+        @media (max-width: 720px) {
+            .header-inner,
+            .app-main {
+                width: calc(100vw - 20px);
+                max-width: calc(100vw - 20px);
+            }
+
+            .brand,
+            .brand-title,
+            .header-actions,
+            .counter,
+            .toggle-group,
+            .section-bar,
+            .toolbar,
+            .toolbar-button,
+            .status-pill,
+            .event-card {
+                max-width: 100%;
+            }
+
+            .brand-title h1 {
+                white-space: normal;
+            }
+
+            .header-actions,
+            .toolbar,
+            .section-bar {
+                align-items: stretch;
+                flex-direction: column;
+                min-width: 0;
+                width: 100%;
+            }
+
+            .counter,
+            .toggle-group,
+            .status-pill,
+            .toolbar-button {
+                width: 100%;
+            }
+
+            .counter {
+                grid-template-columns: minmax(0, 1fr) auto;
+            }
+
+            .toggle-group {
+                justify-content: space-between;
+            }
+
+            .section-bar {
+                align-items: stretch;
+            }
+
+            .event-card {
+                grid-template-columns: minmax(0, 1fr);
+            }
+
+            .event-thumb {
+                width: 100%;
+                height: 150px;
+            }
+
+            .event-status {
+                grid-column: 1 / -1;
+                grid-template-columns: 1fr;
+                justify-items: start;
+                width: 100%;
+                min-width: 0;
+            }
+
+            .event-client {
+                justify-self: start;
+            }
+
+            .field-grid,
+            .metric-grid,
+            .metric-grid--two {
+                grid-template-columns: 1fr;
+            }
+
+            .field-primary {
+                grid-template-columns: 1fr;
+            }
+
+            .field-value--device {
+                text-align: left;
+            }
+
+            .plate-large {
+                font-size: 26px;
+            }
         }
     </style>
 </head>
 
-<body class="bg-gray-900 text-gray-100 font-sans min-h-screen flex flex-col">
-
-    <!-- Header -->
-    <header class="bg-gray-800 border-b border-gray-700 shadow-lg p-4 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center space-x-3">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                <h1 class="text-2xl font-bold tracking-tight">Servidor <span class="text-blue-500">LPR</span></h1>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <div class="brand" aria-label="multimo - Tester Hikvision">
+                <div class="brand-mark">m</div>
+                <div class="brand-title">
+                    <h1>multimo - Tester Hikvision</h1>
+                    <span>Multi LPR + Facial</span>
+                </div>
             </div>
 
-            <!-- Main Control: Response Toggle -->
-            <div class="flex items-center space-x-4">
-                <div class="bg-gray-700 px-4 py-1 rounded-lg border border-gray-600 flex items-center space-x-2">
-                    <span class="text-xs text-gray-400 uppercase font-bold tracking-wider">Veículos</span>
-                    <span id="vehicleCounter" class="text-xl font-bold text-blue-400 font-mono">0</span>
+            <div class="header-actions">
+                <div class="counter counter--access">
+                    <span class="counter-label">Acesso</span>
+                    <span id="accessEventCounter" class="counter-value">0</span>
+                </div>
+                <div class="counter counter--anpr">
+                    <span class="counter-label">ANPR</span>
+                    <span id="anprEventCounter" class="counter-value">0</span>
                 </div>
 
-                <div class="flex items-center bg-gray-700 rounded-full p-1 pl-4 space-x-3 border border-gray-600">
-                    <span class="text-sm font-medium text-gray-300">Responder:</span>
-                    <button id="toggleBtn" onclick="toggleAck()"
-                        class="relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-gray-900 bg-green-600">
-                        <span id="toggleSlider"
-                            class="inline-block h-6 w-6 transform rounded-full bg-white transition duration-200 ease-in-out translate-x-9"></span>
+                <div class="toggle-group">
+                    <span>Responder</span>
+                    <button id="toggleBtn" class="switch is-on" type="button" onclick="toggleAck()" aria-label="Alternar resposta HTTP" aria-pressed="true">
+                        <span id="toggleSlider" class="switch-knob"></span>
                     </button>
                 </div>
 
-                <!-- Settings Button -->
-                <button onclick="openSettings()"
-                    class="text-gray-400 hover:text-white transition p-2 rounded-full hover:bg-gray-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543 .826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <div class="toggle-group">
+                    <span>Verificação Remota</span>
+                    <button id="toggleAutoVerifyBtn" class="switch" type="button" onclick="toggleAutoVerify()" aria-label="Alternar verificação remota" aria-pressed="false">
+                        <span id="toggleAutoVerifySlider" class="switch-knob"></span>
+                    </button>
+                </div>
+
+                <button class="icon-button" type="button" onclick="openSettings()" title="Configurações" aria-label="Configurações">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+                        <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.09 1.65V21.3a2.1 2.1 0 0 1-4.2 0v-.06A1.8 1.8 0 0 0 8.4 19.6a1.8 1.8 0 0 0-1.98.36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04A1.8 1.8 0 0 0 3.8 15a1.8 1.8 0 0 0-1.65-1.09H2.1a2.1 2.1 0 0 1 0-4.2h.06A1.8 1.8 0 0 0 3.8 8.6a1.8 1.8 0 0 0-.36-1.98l-.04-.04A2.1 2.1 0 0 1 6.37 3.6l.04.04A1.8 1.8 0 0 0 8.4 4a1.8 1.8 0 0 0 1.09-1.65V2.1a2.1 2.1 0 0 1 4.2 0v.06A1.8 1.8 0 0 0 14.8 3.8a1.8 1.8 0 0 0 1.98-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.65 1.09h.06a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"></path>
                     </svg>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-grow p-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        <!-- Left: Event Feed -->
-        <div class="lg:col-span-2 space-y-4">
-            <div class="flex justify-between items-center mb-2">
-                <h2 class="text-xl font-semibold text-gray-200">Eventos Recebidos</h2>
-                <div class="flex space-x-2">
-                    <button onclick="clearLogs()"
-                        class="text-xs bg-red-900 hover:bg-red-800 text-red-100 py-1 px-3 rounded border border-red-700 transition">Limpar</button>
-                    <span id="statusIndicator"
-                        class="text-xs bg-green-900 text-green-100 py-1 px-3 rounded border border-green-700 animate-pulse">Online</span>
+    <main class="app-main">
+        <section class="feed-panel" aria-labelledby="eventsTitle">
+            <div class="section-bar">
+                <h2 id="eventsTitle" class="section-title"><span class="live-dot" aria-hidden="true"></span>Eventos Recebidos</h2>
+                <div class="toolbar" aria-label="Filtros e ações">
+                    <button onclick="setFilter('all')" id="filterAll" class="toolbar-button is-active" type="button">Todos</button>
+                    <button onclick="setFilter('facial')" id="filterFacial" class="toolbar-button" type="button">Facial</button>
+                    <button onclick="setFilter('anpr')" id="filterAnpr" class="toolbar-button" type="button">ANPR</button>
+                    <button onclick="clearLogs()" class="toolbar-button toolbar-button--clear" type="button">Limpar</button>
+                    <span id="statusIndicator" class="status-pill">Online</span>
                 </div>
             </div>
 
-            <div id="eventList" class="space-y-3">
-                <!-- Events will be injected here -->
-                <div class="text-center text-gray-500 py-10 italic">Aguardando eventos...</div>
+            <div id="eventList" class="event-list">
+                <div class="empty-state">Aguardando eventos...</div>
             </div>
-        </div>
+        </section>
 
-        <!-- Right: Recent/Selected Details -->
-        <div class="lg:col-span-1">
-            <div class="bg-gray-800 rounded-xl border border-gray-700 p-4 sticky top-24 shadow-xl">
-                <h3 class="text-lg font-medium text-gray-300 mb-4 border-b border-gray-700 pb-2">Detalhes do Último
-                    Evento</h3>
-                <div id="detailView">
-                    <div
-                        class="aspect-video bg-gray-900 rounded-lg flex items-center justify-center border border-gray-700 mb-4 overflow-hidden relative">
-                        <!-- Placeholder for Image -->
-                        <img id="detailImage" src="" class="hidden w-full h-full object-cover" />
-                        <span id="noDetailImage" class="text-gray-600">Sem Imagem</span>
+        <aside class="panel detail-panel" aria-labelledby="detailTitle">
+            <div class="panel-heading">
+                <h2 id="detailTitle">Detalhes do Último Evento</h2>
+                <span id="detailPinIndicator" class="pin-indicator hidden">
+                    <span>Fixado</span>
+                    <button onclick="unpinDetail()" class="pin-close" type="button" title="Desafixar" aria-label="Desafixar">×</button>
+                </span>
+            </div>
+
+            <div id="detailView" class="detail-content">
+                <div id="anprDetail" class="plate-panel hidden">
+                    <div class="plate-label">Placa detectada</div>
+                    <div id="detailPlate" class="plate-large">---</div>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <div class="metric-label">Confiança</div>
+                            <div id="detailConfidence" class="metric-value">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Direção</div>
+                            <div id="detailDirection" class="metric-value">-</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Cor</div>
+                            <div id="detailVehicleColor" class="metric-value">-</div>
+                        </div>
                     </div>
-
-                    <div class="space-y-3">
-                        <div class="bg-gray-900 p-3 rounded border border-gray-700 flex justify-between items-center">
-                            <span class="text-gray-400 text-sm">Placa</span>
-                            <span id="detailPlate" class="text-2xl plate-box text-yellow-500">---</span>
+                    <div class="metric-grid metric-grid--two">
+                        <div class="metric">
+                            <div class="metric-label">Marca</div>
+                            <div id="detailVehicleBrand" class="metric-value">-</div>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
-                                <div class="text-gray-500 text-xs uppercase">Cor</div>
-                                <div id="detailColor" class="text-gray-200 font-medium">-</div>
-                            </div>
-                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
-                                <div class="text-gray-500 text-xs uppercase">Tipo</div>
-                                <div id="detailType" class="text-gray-200 font-medium">-</div>
-                            </div>
-                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
-                                <div class="text-gray-500 text-xs uppercase">Confiança</div>
-                                <div id="detailConfidence" class="text-gray-200 font-medium">-</div>
-                            </div>
-                            <div class="bg-gray-900 p-2 rounded border border-gray-700">
-                                <div class="text-gray-500 text-xs uppercase">Tempo</div>
-                                <div id="detailTime" class="text-gray-200 text-xs font-mono truncate">-</div>
-                            </div>
-                        </div>
-
-                        <div class="mt-4">
-                            <div class="text-gray-500 text-xs mb-1">JSON Bruto</div>
-                            <pre id="detailJson"
-                                class="bg-black text-green-400 text-xs p-2 rounded overflow-x-auto h-32 border border-green-900/30 font-mono">---</pre>
+                        <div class="metric">
+                            <div class="metric-label">Tipo</div>
+                            <div id="detailVehicleType" class="metric-value">-</div>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
+                <div class="detail-stack">
+                    <div class="field-primary">
+                        <span class="field-label">Dispositivo</span>
+                        <span id="detailDevice" class="field-value field-value--device">---</span>
+                    </div>
+
+                    <div class="field-grid">
+                        <div class="field">
+                            <div class="field-label">IP</div>
+                            <div id="detailIp" class="field-value">-</div>
+                        </div>
+                        <div class="field">
+                            <div class="field-label">MAC</div>
+                            <div id="detailMac" class="field-value">-</div>
+                        </div>
+                        <div id="detailVerifyModeCell" class="field">
+                            <div class="field-label">Modo Verificação</div>
+                            <div id="detailVerifyMode" class="field-value">-</div>
+                        </div>
+                        <div id="detailMaskCell" class="field">
+                            <div class="field-label">Máscara</div>
+                            <div id="detailMask" class="field-value">-</div>
+                        </div>
+                        <div id="detailAttendanceCell" class="field">
+                            <div class="field-label">Presença</div>
+                            <div id="detailAttendance" class="field-value">-</div>
+                        </div>
+                        <div class="field">
+                            <div class="field-label">Data/Hora</div>
+                            <div id="detailDateTime" class="field-value">-</div>
+                        </div>
+                    </div>
+
+                    <div id="detailImageCell" class="image-box">
+                        <div class="field-label">Imagem do Evento</div>
+                        <div class="image-frame">
+                            <img id="detailImage" src="" alt="Imagem do evento" class="hidden">
+                            <div id="noImage" class="no-image">Nenhuma imagem recebida</div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="json-header">
+                            <div class="json-label">JSON Bruto</div>
+                            <button onclick="copyJson(event)" class="copy-button" type="button">
+                                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                Copiar
+                            </button>
+                        </div>
+                        <pre id="detailJson" class="json-box">---</pre>
+                    </div>
+                </div>
+            </div>
+        </aside>
     </main>
 
-    <!-- Settings Modal -->
-    <div id="settingsModal"
-        class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg border border-gray-700">
-            <h2 class="text-xl font-bold text-white mb-4 flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-blue-500" fill="none"
-                    viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543 .826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Configurações
-            </h2>
-
-            <div class="space-y-4">
-
-                <!-- Port -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Porta do Servidor</label>
-                    <input type="number" id="settingPort"
-                        class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 custom-spin"
-                        placeholder="ex: 30000">
-                    <p class="text-xs text-yellow-500 mt-1 hidden" id="portWarning">⚠ Alterar a porta requer reiniciar o
-                        aplicativo manualmente.</p>
-                </div>
-
-                <!-- Image Folder -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-400 mb-1">Caminho para Salvar Imagens</label>
-                    <input type="text" id="settingFolder"
-                        class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500"
-                        placeholder="C:\Users\Exemplo\Desktop\Images">
-                    <p class="text-xs text-gray-500 mt-1">Use caminho absoluto.</p>
-                </div>
-
-                <!-- Save Images Toggle -->
-                <div class="flex items-center justify-between bg-gray-900 p-3 rounded border border-gray-700">
-                    <span class="text-gray-300 font-medium">Salvar Imagens no Disco</span>
-                    <label class="inline-flex relative items-center cursor-pointer">
-                        <input type="checkbox" id="settingSaveImages" class="sr-only peer">
-                        <div
-                            class="w-11 h-6 bg-gray-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
-                        </div>
-                    </label>
-                </div>
-
+    <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2 id="settingsTitle">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"></path>
+                        <path d="M19.4 15a1.8 1.8 0 0 0 .36 1.98l.04.04a2.1 2.1 0 0 1-2.97 2.97l-.04-.04a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.09 1.65V21.3a2.1 2.1 0 0 1-4.2 0v-.06A1.8 1.8 0 0 0 8.4 19.6a1.8 1.8 0 0 0-1.98.36l-.04.04a2.1 2.1 0 0 1-2.97-2.97l.04-.04A1.8 1.8 0 0 0 3.8 15a1.8 1.8 0 0 0-1.65-1.09H2.1a2.1 2.1 0 0 1 0-4.2h.06A1.8 1.8 0 0 0 3.8 8.6a1.8 1.8 0 0 0-.36-1.98l-.04-.04A2.1 2.1 0 0 1 6.37 3.6l.04.04A1.8 1.8 0 0 0 8.4 4a1.8 1.8 0 0 0 1.09-1.65V2.1a2.1 2.1 0 0 1 4.2 0v.06A1.8 1.8 0 0 0 14.8 3.8a1.8 1.8 0 0 0 1.98-.36l.04-.04a2.1 2.1 0 0 1 2.97 2.97l-.04.04a1.8 1.8 0 0 0-.36 1.98 1.8 1.8 0 0 0 1.65 1.09h.06a2.1 2.1 0 0 1 0 4.2h-.06A1.8 1.8 0 0 0 19.4 15Z"></path>
+                    </svg>
+                    Configurações
+                </h2>
+                <button class="icon-button" type="button" onclick="closeSettings()" title="Fechar" aria-label="Fechar">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18 6 6 18"></path>
+                        <path d="m6 6 12 12"></path>
+                    </svg>
+                </button>
             </div>
 
-            <div class="mt-6 flex justify-end space-x-3">
-                <button onclick="closeSettings()"
-                    class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-gray-200 transition">Cancelar</button>
-                <button onclick="saveSettings()"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white font-medium transition shadow-lg">Salvar</button>
+            <div class="modal-body">
+                <div class="form-row">
+                    <label for="settingServerHost">Placa de Rede / IP do Servidor</label>
+                    <select id="settingServerHost" class="form-field"></select>
+                </div>
+                <div class="form-row">
+                    <label for="settingPort">Porta do Servidor</label>
+                    <input type="number" id="settingPort" class="form-field" placeholder="ex: 8080">
+                    <p class="form-help form-help--warning hidden" id="portWarning">Alterar IP ou porta requer reiniciar o aplicativo.</p>
+                </div>
+                <div class="form-row">
+                    <label for="settingDeviceUser">Usuário do Dispositivo</label>
+                    <input type="text" id="settingDeviceUser" class="form-field" placeholder="admin">
+                </div>
+                <div class="form-row">
+                    <label for="settingDevicePassword">Senha do Dispositivo</label>
+                    <input type="password" id="settingDevicePassword" class="form-field" placeholder="senha">
+                    <p class="form-help">Utilizado também para autenticação ANPR.</p>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button onclick="closeSettings()" class="modal-action modal-action--ghost" type="button">Cancelar</button>
+                <button onclick="saveSettings()" class="modal-action modal-action--primary" type="button">Salvar</button>
             </div>
         </div>
     </div>
 
     <script>
         let isAckEnabled = true;
+        let isAutoVerifyEnabled = false;
         let lastEventId = 0;
         let currentSettings = {};
+        let currentFilter = 'all';
+        let allRenderedEvents = [];
+        let pinnedLog = null;
+        let pinnedCardEl = null;
 
-        // On Load
         document.addEventListener('DOMContentLoaded', () => {
             fetchSettings();
             setInterval(fetchEvents, 1000);
-            setInterval(fetchSettings, 5000); // Poll counter every 5s
+            setInterval(fetchSettings, 5000);
         });
 
         async function fetchSettings() {
             try {
-                // Fetch settings + meta
                 const [resSettings, resMeta] = await Promise.all([
                     fetch('/api/settings'),
                     fetch('/api/meta')
                 ]);
-
                 const dataSettings = await resSettings.json();
                 const dataMeta = await resMeta.json();
 
                 currentSettings = dataSettings;
                 isAckEnabled = dataSettings.ack_enabled;
-                document.getElementById('vehicleCounter').textContent = dataMeta.vehicle_count;
+                isAutoVerifyEnabled = dataSettings.remote_verify_enabled || false;
+
+                document.getElementById('accessEventCounter').textContent = dataMeta.access_event_count;
+                document.getElementById('anprEventCounter').textContent = dataMeta.anpr_event_count || 0;
 
                 updateToggleUI();
+                updateAutoVerifyToggleUI();
             } catch (e) {
-                console.error("Failed to fetch settings", e);
+                console.error("Falha ao buscar configurações", e);
             }
         }
 
         async function toggleAck() {
             isAckEnabled = !isAckEnabled;
-            updateToggleUI(); // Optimistic update
-
-            // Just update the ack_enabled field
+            updateToggleUI();
             try {
                 const res = await fetch('/api/settings', {
                     method: 'POST',
@@ -256,168 +1311,332 @@
                 isAckEnabled = data.ack_enabled;
                 updateToggleUI();
             } catch (e) {
-                console.error("Failed to toggle", e);
-                // Revert if failed
+                console.error("Falha ao alternar", e);
                 isAckEnabled = !isAckEnabled;
                 updateToggleUI();
             }
         }
 
-        function updateToggleUI() {
-            const btn = document.getElementById('toggleBtn');
-            const slider = document.getElementById('toggleSlider');
-
-            if (isAckEnabled) {
-                btn.classList.remove('bg-red-600');
-                btn.classList.add('bg-green-600');
-                slider.classList.remove('translate-x-1');
-                slider.classList.add('translate-x-9');
-            } else {
-                btn.classList.remove('bg-green-600');
-                btn.classList.add('bg-red-600');
-                slider.classList.remove('translate-x-9');
-                slider.classList.add('translate-x-1');
+        async function toggleAutoVerify() {
+            isAutoVerifyEnabled = !isAutoVerifyEnabled;
+            updateAutoVerifyToggleUI();
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ remote_verify_enabled: isAutoVerifyEnabled })
+                });
+                const data = await res.json();
+                isAutoVerifyEnabled = data.remote_verify_enabled || false;
+                updateAutoVerifyToggleUI();
+            } catch (e) {
+                console.error("Falha ao alternar auto verify", e);
+                isAutoVerifyEnabled = !isAutoVerifyEnabled;
+                updateAutoVerifyToggleUI();
             }
+        }
+
+        function updateSwitch(buttonId, isOn) {
+            const btn = document.getElementById(buttonId);
+            btn.classList.toggle('is-on', isOn);
+            btn.setAttribute('aria-pressed', String(isOn));
+        }
+
+        function updateToggleUI() {
+            updateSwitch('toggleBtn', isAckEnabled);
+        }
+
+        function updateAutoVerifyToggleUI() {
+            updateSwitch('toggleAutoVerifyBtn', isAutoVerifyEnabled);
         }
 
         async function fetchEvents() {
             try {
                 const res = await fetch('/api/events');
                 const events = await res.json();
-
-                // Filter new events
                 const newEvents = events.filter(e => e.id > lastEventId);
+                setOnlineState(true);
+
                 if (newEvents.length > 0) {
                     lastEventId = newEvents[newEvents.length - 1].id;
+                    allRenderedEvents = [...newEvents, ...allRenderedEvents].slice(0, 100);
                     renderEvents(newEvents);
-                    // Update detail view with the latest one automatically
-                    updateDetail(newEvents[newEvents.length - 1]);
+                    refreshPinnedCard();
+                    if (!pinnedLog) {
+                        updateDetail(newEvents[newEvents.length - 1]);
+                    }
                 }
             } catch (e) {
-                console.error("Polling error", e);
-                document.getElementById('statusIndicator').classList.remove('bg-green-900', 'text-green-100');
-                document.getElementById('statusIndicator').classList.add('bg-gray-600', 'text-gray-300');
-                document.getElementById('statusIndicator').textContent = 'Offline?';
+                console.error("Erro de polling", e);
+                setOnlineState(false);
             }
+        }
+
+        function setOnlineState(isOnline) {
+            const indicator = document.getElementById('statusIndicator');
+            indicator.classList.toggle('is-offline', !isOnline);
+            indicator.textContent = isOnline ? 'Online' : 'Offline?';
+        }
+
+        function refreshPinnedCard() {
+            if (!pinnedLog) return;
+            const el = document.querySelector(`[data-log-id="${pinnedLog.id}"]`);
+            if (el && el !== pinnedCardEl) {
+                if (pinnedCardEl) pinnedCardEl.classList.remove('is-pinned');
+                pinnedCardEl = el;
+                el.classList.add('is-pinned');
+            }
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            ['all', 'facial', 'anpr'].forEach(f => {
+                const btn = document.getElementById(`filter${f.charAt(0).toUpperCase() + f.slice(1)}`);
+                btn.classList.toggle('is-active', f === filter);
+            });
+
+            document.getElementById('eventList').innerHTML = '<div class="empty-state">Aguardando eventos...</div>';
+            lastEventId = 0;
+            allRenderedEvents = [];
+            fetchEvents();
         }
 
         function renderEvents(logList) {
             const container = document.getElementById('eventList');
-            // Remove "Waiting..." msg if exists
             if (container.children.length === 1 && container.children[0].textContent.includes('Aguardando')) {
                 container.innerHTML = '';
             }
 
             logList.forEach(log => {
+                const source = log.event_source || 'facial';
+                if (currentFilter !== 'all' && currentFilter !== source) return;
+
+                const isAnpr = source === 'anpr';
                 const isError = log.status >= 400;
-                const statusColor = isError ? 'text-red-400' : 'text-green-400';
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = `event-card ${isAnpr ? 'event-card--anpr' : 'event-card--facial'} ${isError ? 'event-card--error' : ''}`;
+                card.dataset.logId = log.id;
+                card.onclick = () => togglePinDetail(log, card);
 
-                const card = document.createElement('div');
-                card.className = "bg-gray-800 border-l-4 " + (isError ? "border-red-500" : "border-green-500") + " p-4 rounded shadow hover:bg-gray-750 transition duration-150 cursor-pointer";
-                card.onclick = () => updateDetail(log);
+                const d = log.data || {};
+                let titleHtml;
+                let subtitleHtml;
 
-                const picture = log.data?.Picture || {};
-                const plate = picture.Plate?.PlateNumber || "Sem Placa";
-                const snapTime = picture.SnapInfo?.SnapTime || new Date().toLocaleTimeString();
+                if (isAnpr) {
+                    const plate = d.plateNumber || '---';
+                    const brand = d.vehicleBrand ? `${d.vehicleBrand} ` : '';
+                    const color = d.vehicleColor || '';
+                    const eventDateTime = d.dateTime || log.timestamp;
+                    titleHtml = `
+                        <div class="event-title">
+                            <span class="anpr-badge">ANPR</span>
+                            <span class="plate-number">${escapeHtml(plate)}</span>
+                            <span class="event-time">${escapeHtml(String(eventDateTime))}</span>
+                        </div>`;
+                    subtitleHtml = `${brand}${color} • IP: ${escapeHtml(log.client_ip)}`;
+                } else {
+                    const ace = d.AccessControllerEvent || {};
+                    const deviceName = ace.deviceName || d.eventType || 'Evento';
+                    const eventDateTime = d.dateTime || log.timestamp;
+                    titleHtml = `
+                        <div class="event-title">
+                            <span class="event-device">${escapeHtml(deviceName)}</span>
+                            <span class="event-time">${escapeHtml(String(eventDateTime))}</span>
+                        </div>`;
+                    subtitleHtml = `${log.method} ${log.path} • IP: ${escapeHtml(d.ipAddress || log.client_ip)}`;
+                }
 
                 card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="flex items-center space-x-2">
-                                <span class="bg-gray-900 text-yellow-500 px-2 py-0.5 rounded font-mono font-bold">${plate}</span>
-                                <span class="text-xs text-gray-400">${snapTime}</span>
-                            </div>
-                            <div class="text-xs text-gray-500 mt-1">${log.method} ${log.path}</div>
-                        </div>
-                        <div class="text-right">
-                             <div class="font-bold ${statusColor}">Status: ${log.status}</div>
-                             <div class="text-xs text-gray-500">${log.client_ip}</div>
-                        </div>
-                    </div>
+                    ${log.image_url ? `<img src="${log.image_url}" class="event-thumb" alt="Miniatura do evento">` : '<span></span>'}
+                    <span class="event-main">
+                        ${titleHtml}
+                        <span class="event-subtitle">${subtitleHtml}</span>
+                    </span>
+                    <span class="event-status">
+                        <span class="status-code ${isError ? 'status-code--error' : ''}">Status ${log.status}</span>
+                        <span class="event-client">${escapeHtml(log.client_ip)}</span>
+                    </span>
                 `;
 
-                // Prepend
                 container.insertBefore(card, container.firstChild);
             });
 
-            // Limit list size
+            if (!container.children.length) {
+                container.innerHTML = '<div class="empty-state">Aguardando eventos...</div>';
+            }
+
             while (container.children.length > 50) {
                 container.removeChild(container.lastChild);
             }
         }
 
+        function togglePinDetail(log, cardEl) {
+            if (pinnedLog && pinnedLog.id === log.id) {
+                unpinDetail();
+            } else {
+                if (pinnedCardEl) pinnedCardEl.classList.remove('is-pinned');
+                pinnedLog = log;
+                pinnedCardEl = cardEl;
+                cardEl.classList.add('is-pinned');
+                document.getElementById('detailPinIndicator').classList.remove('hidden');
+                updateDetail(log);
+            }
+        }
+
+        function unpinDetail() {
+            if (pinnedCardEl) pinnedCardEl.classList.remove('is-pinned');
+            pinnedLog = null;
+            pinnedCardEl = null;
+            document.getElementById('detailPinIndicator').classList.add('hidden');
+        }
+
         function updateDetail(log) {
-            const picture = log.data?.Picture || {};
-            const plateInfo = picture.Plate || {};
-            const vehicleInfo = picture.Vehicle || {};
-            const snapInfo = picture.SnapInfo || {};
+            const d = log.data || {};
+            const source = log.event_source || 'facial';
+            const isAnpr = source === 'anpr';
+            const anprSection = document.getElementById('anprDetail');
+            const facialCells = ['detailVerifyModeCell', 'detailMaskCell', 'detailAttendanceCell'];
+            const detailDevice = document.getElementById('detailDevice');
 
-            document.getElementById('detailPlate').textContent = plateInfo.PlateNumber || "N/A";
-            document.getElementById('detailColor').textContent = vehicleInfo.VehicleColor || plateInfo.PlateColor || "-";
-            document.getElementById('detailType').textContent = vehicleInfo.VehicleType || "-";
-            document.getElementById('detailConfidence').textContent = plateInfo.Confidence ? plateInfo.Confidence + "%" : "-";
-            document.getElementById('detailTime').textContent = snapInfo.SnapTime || "-";
-
-            document.getElementById('detailJson').textContent = JSON.stringify(log.data, null, 2);
-
-            const imgEl = document.getElementById('detailImage');
-            const noImgEl = document.getElementById('noDetailImage');
-
-            // Determine Image Source
-            // Priority: Saved paths (Normal > Cutout > Plate) > Base64 (fallback)
-            const savedImages = log.images || {};
-            let imgSrc = null;
-
-            if (savedImages.NormalPic) {
-                imgSrc = "/images/" + savedImages.NormalPic;
-            } else if (savedImages.CutoutPic) {
-                imgSrc = "/images/" + savedImages.CutoutPic;
-            } else if (savedImages.PlatePic) {
-                imgSrc = "/images/" + savedImages.PlatePic;
+            if (isAnpr) {
+                anprSection.classList.remove('hidden');
+                facialCells.forEach(id => document.getElementById(id).classList.add('hidden'));
+                document.getElementById('detailPlate').textContent = d.plateNumber || '---';
+                document.getElementById('detailConfidence').textContent = d.plateConfidence || '-';
+                document.getElementById('detailDirection').textContent = d.vehicleDirection || '-';
+                document.getElementById('detailVehicleColor').textContent = d.vehicleColor || '-';
+                document.getElementById('detailVehicleBrand').textContent = d.vehicleBrand || '-';
+                document.getElementById('detailVehicleType').textContent = d.vehicleType || '-';
+                detailDevice.textContent = d.channelName || 'Câmera ANPR';
+                detailDevice.className = 'field-value field-value--device field-value--anpr';
             } else {
-                // Fallback to checking loose base64 if not replaced
-                const b64 = picture.CutoutPic?.Content || picture.PlatePic?.Content;
-                if (b64 && b64.length > 100 && !b64.startsWith("[SAVED")) {
-                    imgSrc = "data:image/jpeg;base64," + b64;
-                }
+                anprSection.classList.add('hidden');
+                facialCells.forEach(id => document.getElementById(id).classList.remove('hidden'));
+                document.getElementById('detailImageCell').classList.remove('hidden');
+                detailDevice.className = 'field-value field-value--device';
+
+                const ace = d.AccessControllerEvent || {};
+                detailDevice.textContent = ace.deviceName || d.eventType || 'N/A';
+                document.getElementById('detailVerifyMode').textContent = ace.currentVerifyMode || '-';
+                document.getElementById('detailMask').textContent = ace.mask || '-';
+                document.getElementById('detailAttendance').textContent = ace.attendanceStatus || '-';
             }
 
-            if (imgSrc) {
-                imgEl.src = imgSrc;
-                imgEl.classList.remove('hidden');
-                noImgEl.classList.add('hidden');
+            const imgElement = document.getElementById('detailImage');
+            const noImgElement = document.getElementById('noImage');
+            if (log.image_url) {
+                imgElement.src = log.image_url;
+                imgElement.classList.remove('hidden');
+                noImgElement.classList.add('hidden');
             } else {
-                imgEl.classList.add('hidden');
-                noImgEl.classList.remove('hidden');
+                imgElement.src = '';
+                imgElement.classList.add('hidden');
+                noImgElement.classList.remove('hidden');
             }
+
+            document.getElementById('detailIp').textContent = d.ipAddress || log.client_ip || '-';
+            document.getElementById('detailMac').textContent = d.macAddress || '-';
+            document.getElementById('detailDateTime').textContent = d.dateTime || log.timestamp || '-';
+            document.getElementById('detailJson').textContent = JSON.stringify(d, null, 2);
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
         }
 
         async function clearLogs() {
-            // In a real app we might ask backend to clear, but here we just clear UI for now
-            document.getElementById('eventList').innerHTML = '<div class="text-center text-gray-500 py-10 italic">Logs limpos...</div>';
+            try {
+                const res = await fetch('/api/events', { method: 'DELETE' });
+                if (res.ok) {
+                    const data = await res.json();
+                    lastEventId = data.last_event_id || lastEventId;
+                    document.getElementById('accessEventCounter').textContent = data.access_event_count || 0;
+                    document.getElementById('anprEventCounter').textContent = data.anpr_event_count || 0;
+                }
+            } catch (e) {
+                console.error('Erro ao limpar eventos no servidor', e);
+            }
+
+            unpinDetail();
+            document.getElementById('eventList').innerHTML = '<div class="empty-state">Logs limpos...</div>';
+            allRenderedEvents = [];
+            resetDetail();
         }
 
-        // --- Settings Modal Logic ---
+        function resetDetail() {
+            document.getElementById('anprDetail').classList.add('hidden');
+            ['detailVerifyModeCell', 'detailMaskCell', 'detailAttendanceCell'].forEach(id => {
+                document.getElementById(id).classList.remove('hidden');
+            });
+            document.getElementById('detailDevice').textContent = '---';
+            document.getElementById('detailDevice').className = 'field-value field-value--device';
+            document.getElementById('detailIp').textContent = '-';
+            document.getElementById('detailMac').textContent = '-';
+            document.getElementById('detailVerifyMode').textContent = '-';
+            document.getElementById('detailMask').textContent = '-';
+            document.getElementById('detailAttendance').textContent = '-';
+            document.getElementById('detailDateTime').textContent = '-';
+            document.getElementById('detailImage').src = '';
+            document.getElementById('detailImage').classList.add('hidden');
+            document.getElementById('noImage').classList.remove('hidden');
+            document.getElementById('detailJson').textContent = '---';
+        }
+
+        function getConfiguredServerHost() {
+            return currentSettings.server_host || '0.0.0.0';
+        }
+
+        function renderNetworkInterfaceOptions() {
+            const select = document.getElementById('settingServerHost');
+            const configuredHost = getConfiguredServerHost();
+            const interfaces = Array.isArray(currentSettings.network_interfaces)
+                ? currentSettings.network_interfaces
+                : [];
+            const used = new Set();
+
+            select.innerHTML = '';
+
+            function addOption(address, label) {
+                if (!address || used.has(address)) return;
+                used.add(address);
+                const option = document.createElement('option');
+                option.value = address;
+                option.textContent = label || address;
+                select.appendChild(option);
+            }
+
+            interfaces.forEach(item => {
+                addOption(item.address, item.label || `${item.name || 'IP'} - ${item.address}`);
+            });
+            addOption(configuredHost, `Configurado - ${configuredHost}`);
+            select.value = configuredHost;
+        }
+
+        function updateRestartWarning() {
+            const warning = document.getElementById('portWarning');
+            const selectedHost = document.getElementById('settingServerHost').value;
+            const selectedPort = parseInt(document.getElementById('settingPort').value);
+            const currentPort = currentSettings.port || 8080;
+            const sameHost = selectedHost === getConfiguredServerHost();
+            const samePort = selectedPort === currentPort;
+            warning.classList.toggle('hidden', sameHost && samePort);
+        }
+
         function openSettings() {
             const modal = document.getElementById('settingsModal');
             modal.classList.remove('hidden');
-
-            // Populate fields
-            document.getElementById('settingPort').value = currentSettings.port || 30000;
-            document.getElementById('settingFolder').value = currentSettings.image_folder || '';
-            document.getElementById('settingSaveImages').checked = currentSettings.save_images !== false;
-
-            // Port warning logic
-            document.getElementById('settingPort').oninput = function () {
-                const oldPort = currentSettings.port;
-                const newPort = parseInt(this.value);
-                const warning = document.getElementById('portWarning');
-                if (newPort !== oldPort) {
-                    warning.classList.remove('hidden');
-                } else {
-                    warning.classList.add('hidden');
-                }
-            };
+            renderNetworkInterfaceOptions();
+            document.getElementById('settingPort').value = currentSettings.port || 8080;
+            document.getElementById('settingDeviceUser').value = currentSettings.device_user || 'admin';
+            document.getElementById('settingDevicePassword').value = currentSettings.device_password || 'password';
+            document.getElementById('settingPort').oninput = updateRestartWarning;
+            document.getElementById('settingServerHost').onchange = updateRestartWarning;
+            updateRestartWarning();
         }
 
         function closeSettings() {
@@ -426,34 +1645,49 @@
         }
 
         async function saveSettings() {
+            const newHost = document.getElementById('settingServerHost').value;
             const newPort = parseInt(document.getElementById('settingPort').value);
-            const newFolder = document.getElementById('settingFolder').value;
-            const newSaveImages = document.getElementById('settingSaveImages').checked;
-
-            const payload = {
-                port: newPort,
-                image_folder: newFolder,
-                save_images: newSaveImages
-            };
+            const newUser = document.getElementById('settingDeviceUser').value;
+            const newPassword = document.getElementById('settingDevicePassword').value;
 
             try {
                 const res = await fetch('/api/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        server_host: newHost,
+                        port: newPort,
+                        device_user: newUser,
+                        device_password: newPassword
+                    })
                 });
-
                 if (res.ok) {
                     const data = await res.json();
                     currentSettings = data;
                     closeSettings();
-                    // Alert?
                 } else {
                     alert("Erro ao salvar!");
                 }
             } catch (e) {
-                console.error(e);
                 alert("Erro ao salvar: " + e);
+            }
+        }
+
+        async function copyJson(event) {
+            const jsonText = document.getElementById('detailJson').textContent;
+            if (jsonText === '---') return;
+            try {
+                await navigator.clipboard.writeText(jsonText);
+                const btn = event.currentTarget;
+                const originalText = btn.innerHTML;
+                btn.innerHTML = 'Copiado!';
+                btn.classList.add('is-copied');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.classList.remove('is-copied');
+                }, 2000);
+            } catch (err) {
+                console.error('Erro ao copiar', err);
             }
         }
     </script>

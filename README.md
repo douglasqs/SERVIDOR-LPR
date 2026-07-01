@@ -1,76 +1,82 @@
-# DAHUA LPR Event Server
+# multimo - Tester Hikvision
 
-A desktop application and web server designed to receive, process, and display License Plate Recognition (LPR) events from Dahua cameras. This application provides a real-time dashboard to monitor vehicle passages and saves captured images locally.
+Servidor Flask com interface desktop/web para testar eventos Hikvision de facial/acesso e ANPR, mostrar os ultimos eventos em tempo real e salvar fotos recebidas via multipart.
 
-## 🚀 Features
+## Recursos
 
-- **LPR Event Handling**: Receives HTTP POST requests with JSON payloads from Dahua LPR cameras.
-- **Image Processing**: Automatically decodes Base64 images (Normal, Cutout, Plate) and saves them to `Desktop/Tollgate_Images`.
-- **Real-time Dashboard**: A modern web interface displaying the latest events, vehicle counts, and server status.
-- **Desktop Application**: Runs as a standalone desktop window using `pywebview` (no browser required).
-- **Connection Simulation**: Toggle ensuring "200 OK" or "500 Error" responses to test camera behavior when the server is down/busy.
-- **Keep-Alive Support**: Handles heartbeat messages from cameras to maintain connection status.
+- Recebe eventos faciais em `POST /` com multipart `event_log` + foto.
+- Aceita JSON bruto e XML Hikvision como fallback.
+- Recebe eventos ANPR `mixedTargetDetection` via multipart.
+- Salva imagens em `captured_images`.
+- Mostra contadores separados para facial/acesso e ANPR.
+- Permite alternar a resposta HTTP entre `200 OK` e `500`.
+- Pode liberar automaticamente eventos de acesso aprovados usando ISAPI `remoteCheck` com o `serialNo` recebido em cada evento.
 
-## 🛠️ Installation
-
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/yourusername/lpr-server.git
-    cd lpr-server
-    ```
-
-2.  **Install Dependencies**:
-    Requires Python 3.x. Install the necessary packages:
-    ```bash
-    pip install -r requirements.txt
-    ```
-    *(If `requirements.txt` doesn't exist, install manually)*:
-    ```bash
-    pip install Flask pywebview
-    ```
-
-## 🖥️ Usage
-
-### Running Locally
-To start the application:
+## Executar
 
 ```bash
 python app.py
 ```
 
-- Information on the console will show the server port (default: `30000`).
-- A window will automatically open with the dashboard.
-- Images will be saved to your Desktop in the `Tollgate_Images` folder.
+A porta configurada neste checkout esta em `config.json` e foi deixada como `40800`, conforme a ultima pagina salva da versao Hikvision. A interface abre em:
 
-### Building as Executable (.exe)
-To compile the application into a single `.exe` file for Windows:
+```text
+http://127.0.0.1:40800
+```
 
-1.  Install PyInstaller:
-    ```bash
-    pip install pyinstaller
-    ```
+## Configuracao
 
-2.  Run the build command:
-    ```bash
-    pyinstaller --noconfirm --onefile --windowed --name "LPR_Server" --add-data "templates;templates" --hidden-import "webview" app.py
-    ```
-    *Note: The `--add-data` flag is crucial for including the HTML interface inside the executable.*
+`config.json`:
 
-3.  The output file will be in the `dist/` folder.
+```json
+{
+    "port": 40800,
+    "ack_enabled": true,
+    "device_user": "admin",
+    "device_password": "password",
+    "remote_verify_enabled": false
+}
+```
 
-## 📡 API Endpoints
+`device_user` e `device_password` sao usados quando `remote_verify_enabled` esta ligado.
 
--   `POST /NotificationInfo/TollgateInfo`: Main endpoint for vehicle passage events.
--   `POST /NotificationInfo/KeepAlive`: Status check from cameras.
--   `GET /api/events`: Returns the history of recent events (JSON).
--   `POST /api/settings`: Toggle the ACK (Response Mode) status.
+## Eventos Faciais
 
-## 📂 Project Structure
+Endpoint principal:
 
--   `app.py`: Main server logic, image decoding, and GUI launcher.
--   `templates/index.html`: Frontend dashboard.
--   `Desktop/Tollgate_Images`: Default storage location for captured images.
+```text
+POST /
+```
 
-## 📝 License
+Formato recomendado:
 
-[MIT License](LICENSE)
+- campo multipart `event_log`: JSON do evento Hikvision
+- campo multipart `facePic`, `faceImage`, `FaceImage` ou `FacePic`: imagem do evento
+
+O servidor tambem tenta ler o primeiro campo de formulario que contenha JSON Hikvision e a primeira imagem enviada, caso o equipamento use outro nome de campo.
+
+## ANPR
+
+Para cameras ANPR Hikvision, envie multipart com o campo:
+
+```text
+mixedTargetDetection
+```
+
+O servidor normaliza placa, confianca, cor, marca, tipo, IP, canal e imagem do veiculo para a interface.
+
+## API Local
+
+- `GET /api/events`: ultimos eventos recebidos.
+- `GET /api/meta`: contadores de facial/acesso e ANPR.
+- `GET /api/settings`: configuracoes atuais.
+- `POST /api/settings`: altera `ack_enabled`, `port`, `device_user`, `device_password` e `remote_verify_enabled`.
+- `POST /api/remote_verify`: executa `remoteCheck` ISAPI com `ipAddress` e `serialNo`.
+
+## Build Windows
+
+```bash
+pyinstaller --noconfirm --onefile --windowed --name "multimo - Tester Hikvision" --add-data "templates;templates" --hidden-import "webview" app.py
+```
+
+O executavel fica em `dist/`.
